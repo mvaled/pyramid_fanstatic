@@ -60,7 +60,10 @@ class Tween(object):
             return response
 
         if needed.has_resources():
-            result = needed.render_topbottom_into_html(response.body)
+            # Using response.body may cause a UnicodeDecodeError if the body
+            # contains UTF-8 encoded characters. So it's best to pass
+            # unicode_body directly, so the regexps won't fail.
+            result = needed.render_topbottom_into_html(response.unicode_body)
             response.body = ''
             response.write(result)
         fanstatic.del_needed()
