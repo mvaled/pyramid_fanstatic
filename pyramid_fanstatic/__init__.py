@@ -11,7 +11,10 @@ log = logging.getLogger(__name__)
 
 
 def fanstatic_config(config, prefix='fanstatic.'):
-    cfg = {'publisher_signature': fanstatic.DEFAULT_SIGNATURE}
+    cfg = {
+        'publisher_signature': fanstatic.DEFAULT_SIGNATURE,
+        'injector': 'topbottom',
+    }
     for k, v in config.items():
         if k.startswith(prefix):
             cfg[k[len(prefix):]] = v
@@ -27,6 +30,13 @@ class Tween(object):
         self.publisher = Publisher(fanstatic.get_library_registry())
         self.publisher_signature = self.config.get('publisher_signature')
         self.trigger = '/%s/' % self.publisher_signature
+        injector_name = self.config.pop('injector')
+        self.injector = None
+        registry = fanstatic.registry
+        if hasattr(registry, 'InjectorRegistry'):
+            injector_factory = registry.InjectorRegistry.instance().get(
+                injector_name)
+            self.injector = injector_factory(self.config)
 
     def __call__(self, request):
 
@@ -63,7 +73,11 @@ class Tween(object):
             # Using response.body may cause a UnicodeDecodeError if the body
             # contains UTF-8 encoded characters. So it's best to pass
             # unicode_body directly, so the regexps won't fail.
-            result = needed.render_topbottom_into_html(response.unicode_body)
+            if self.injector is not None:
+                result = self.injector(response.unicode_body,
+                                       needed, request, response)
+            else:
+                result = needed.render_topbottom_into_html(response.unicode_body)
             response.body = ''
             response.write(result)
         fanstatic.del_needed()
