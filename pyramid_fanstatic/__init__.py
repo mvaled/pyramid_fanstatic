@@ -70,14 +70,15 @@ class Tween(object):
             return response
 
         if needed.has_resources():
-            # Using response.body may cause a UnicodeDecodeError if the body
-            # contains UTF-8 encoded characters. So it's best to pass
+            # Using response.body may cause a UnicodeDecodeError if some of
+            # the libraries contain unicode strings. So it's best to pass
             # unicode_body directly, so the regexps won't fail.
             if self.injector is not None:
                 result = self.injector(response.unicode_body,
                                        needed, request, response)
             else:
-                result = needed.render_topbottom_into_html(response.unicode_body)
+                result = needed.render_topbottom_into_html(
+                    response.unicode_body)
             response.body = ''
             response.write(result)
         fanstatic.del_needed()

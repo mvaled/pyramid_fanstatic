@@ -154,3 +154,52 @@ class TestCustomConfigUseApplicationUriPrecendence(TestCustomConfig):
                           'fanstatic/jquery/jquery.js"></script>'))
         self.assertNotIn(environ['HTTP_HOST'], resp.body)
 
+
+class TestUnicodeError(unittest.TestCase):
+    _custom_config = {
+            'fanstatic.publisher_signature': 'custom_sign',
+    }
+
+    def setUp(self):
+        from fanstatic import Library, Resource
+        from fanstatic import set_resource_file_existence_checking
+        set_resource_file_existence_checking(False)
+
+        self.lib = Library('foo', '')
+        #  When the resources contains an unicode string fanstatic may break
+        #  if the HTML is only str.
+        self.resource = Resource(self.lib, u'resource.js')
+
+        self.config = testing.setUp()
+        self.config.registry.settings.update(self._custom_config)
+        self.config.include("pyramid_fanstatic")
+        self.config.add_route('home', '/')
+        self.config.add_view(route_name='home', view=self.home)
+        self.app = TestApp(self.config.make_wsgi_app())
+
+    def home(self, request):
+        resp = request.response
+        resp.content_type = 'text/html; charset=utf-8'
+        resp.body = '''\
+<html>
+<head>
+</head>
+<body>
+<p>Voil\xc3\xa0 !</p>
+</body>
+</html>
+'''
+        self.resource.need()
+        return resp
+
+    def test_unicode_error_should_not_be_raised(self):
+        self.app.get('/')
+
+    def tearDown(self):
+        from fanstatic import set_resource_file_existence_checking
+        testing.tearDown()
+        set_resource_file_existence_checking(True)
+
+
+if __name__ == '__main__':
+    unittest.main()
